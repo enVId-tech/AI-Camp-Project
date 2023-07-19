@@ -3,6 +3,20 @@ import { Helmet, HelmetProvider } from 'react-helmet-async';
 import LOGO from './AICAMP.png';
 
 function App() {
+  const postFile = async () => {
+    let data = {
+      file: document.getElementById('file').files[0],
+    }
+    
+    let response = await fetch('/predict', {
+      method: 'POST',
+      body: data,
+    })
+
+    let result = await response.json()
+    document.getElementById('result').innerHTML = result.result
+  }
+  
   return (
     <div className="App">
       <HelmetProvider>
@@ -22,7 +36,7 @@ function App() {
 
             <div id="result"></div>
 
-            <button type="submit" id="btn">
+            <button type="submit" id="btn" onClick={postFile}>
               Submit
             </button>
           </form>
