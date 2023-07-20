@@ -1,89 +1,85 @@
 import os
+import io
 from flask import Flask, render_template, request, send_from_directory, jsonify
+import torch
+import torch.nn.functional as F
+from torchvision import transforms
+from PIL import Image
 from flask_cors import CORS
 import requests
 import uuid
 import base64
-import torch
-from transformers import AutoModel, AutoTokenizer
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
-# Directory where uploaded files will be stored
-app.config["IMAGE_UPLOADS"] = "uploads"
-app.config["ALLOWED_EXTENSIONS"] = {
-    "png", "jpg", "jpeg", "gif"
-}  # Allowed file extensions
+app.config["IMAGE_UPLOADS"] = "uploads"  # Directory where uploaded files will be stored
+app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg", "gif"}  # Allowed file extensions
 
-# API Configuration
-API_URL = "https://huggingface.co/scoobydoo1688/LanguageIdentificationAICamp/blob/main/resnet50.bin"
-# Replace with your actual API key
-API_KEY = "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"
-headers = {"Authorization": f"Bearer {API_KEY}"}
-#######################################################
-MODEL_NAME = "scoobydoo1688/LanguageIdentificationAICamp"
+# Model Configuration
+MODEL_PATH = "server/model/resnet50.pth"
 
-# Load the tokenizer and model
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModel.from_pretrained(MODEL_NAME)
-model.eval()  # Set the model to evaluation mode
+# Define the model class (you should replace this with your actual model class)
+class MyDataset(torch.nn.Module):
+    def __init__(self):
+        super(MyDataset, self).__init__()
+        # Add the layers of your model here
 
-def query_language_identification(image_data):
-    """Send the image data to the language identification model and get the response."""
-    files = {"image_data": image_data}
+    def forward(self, x):
+        # Implement the forward pass of your model here
+        return x
 
-    # Perform inference using the pre-trained model
-    inputs = tokenizer.decode(image_data)
-    encoded_inputs = tokenizer(inputs, return_tensors="pt", padding=True, truncation=True)
-    with torch.no_grad():
-        outputs = model(**encoded_inputs)
+# Load the PyTorch model as an OrderedDict
+model_state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
+print(model_state_dict.keys())
 
-    # Process the model output and return the language identification result
-    # Replace this part with the logic specific to your model's output format
-    # For example, if it's a classification task, you might use softmax and argmax
-    # to get the predicted class label.
-    language_id = torch.argmax(outputs.logits).item()
-    language = "English" if language_id == 0 else "Non-English"
+# Create an instance of your model and load the state_dict
+model = MyDataset()
+model.load_state_dict(model_state_dict)
 
-    return {"language": language}
-#######################################################
+# Set the model in evaluation mode
+model.eval()
+
+# Set up the image transformation
+image_transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Assuming the model requires 224x224 input
+    transforms.ToTensor(),
+])
 
 def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
-
 
 def generate_unique_filename(filename):
     """Generate a unique filename to avoid overwriting existing files."""
     unique_id = str(uuid.uuid4())[:8]
     return f"{secure_filename(filename)}_{unique_id}"
 
-
 def query_language_identification(image_data):
-    """Send the image data to the language identification API and get the response."""
-    files = {"image_data": image_data}
+    """Send the image data to the language identification model and get the response."""
+    try:
+        # Load image from image data
+        img = Image.open(io.BytesIO(image_data))
+        img = image_transform(img).unsqueeze(0)  # Add batch dimension
 
-    print(API_URL, headers, files)
-    response = requests.post(API_URL, headers=headers, files=files)
+        # Perform inference
+        with torch.no_grad():
+            output = model(img)
 
-    print(response)
-    if response.status_code == 200:
-        try:
-            return response.json()
-        except requests.exceptions.JSONDecodeError:
-            return {"error": "Invalid JSON response from the API"}
+        # Process the output, you might need to adjust this based on your model's architecture
+        probabilities = F.softmax(output, dim=1).squeeze(0)
+        _, predicted_class = torch.max(probabilities, dim=0)
 
-    # Handle non-200 status codes
-    return {"error": "Failed to get a valid response from the API"}
+        return {"predicted_class": predicted_class.item(), "probabilities": probabilities.tolist()}
 
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.route('/')
 def main():
     return render_template("index.html")
-
 
 @app.route('/predict', methods=['POST'])
 def success():
@@ -108,17 +104,15 @@ def success():
         with open(os.path.join(app.config["IMAGE_UPLOADS"], filename), "wb") as f:
             f.write(image_data)
 
-        # Call the language identification API and get the response
+        # Call the language identification function and get the response
         output = query_language_identification(image_data)
 
         return jsonify(output)
-
 
 @app.route('/uploads/<filename>')
 def serve_uploaded_file(filename):
     """Safely serve the uploaded file from the 'uploads' directory."""
     return send_from_directory(app.config["IMAGE_UPLOADS"], filename)
-
 
 if __name__ == "__main__":
     # Ensure the 'uploads' directory exists

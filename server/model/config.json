@@ -1,0 +1,9 @@
+{
+    "architecture": "ResNet-50",
+    "num_classes": 5,
+    "pretrained": true,
+    "input_size": [
+        640,
+        640
+    ]
+}
