@@ -1,8 +1,33 @@
 import './Main.scss';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
+import React, { useEffect, useState } from 'react';
 import LOGO from './AICAMP.png';
 
 function App() {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    // create the preview
+    if (selectedFile) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreview(objectUrl);
+
+      // free memory when this component is unmounted
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+  }, [selectedFile]);
+
+  const onSelectFile = (e) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      setSelectedFile(null);
+      setPreview(null);
+      return;
+    }
+
+    setSelectedFile(e.target.files[0]);
+  };
+
   const postFile = async () => {
     const fileInput = document.getElementById('file');
     const file = fileInput.files[0];
@@ -36,9 +61,10 @@ function App() {
         alert('No language detected');
         return;
       }
-      const formattedResult = result.map((lang) => `${lang.language}: ${lang.percentage}%`);
-      document.getElementById('result').innerHTML = formattedResult.join('<br>');
-    
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = result.predicted_class;
+
     };
 
     reader.readAsDataURL(file);
@@ -58,9 +84,11 @@ function App() {
 
         <p id="Title">Computer Vision Project</p>
         <div id="Text1">
-          <form>
-            <input type="file" id="file" accept="image/*" />
-
+          <form id="Form">
+            <div id="inputs">
+              <input type="file" id="file" accept="image/*" onChange={onSelectFile} />
+              {selectedFile && <img id="preview" src={preview} />}
+            </div>
             <div id="result"></div>
 
             <button type="submit" id="btn" onClick={e => { e.preventDefault(); postFile(); }}>
