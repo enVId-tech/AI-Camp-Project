@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename
 import gradio as gr
 from PIL import Image
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../public')
 CORS(app)
 
 # Configuration
@@ -49,7 +49,7 @@ MODEL_PATH = "server/model/resnet50.pth"
 model = models.resnet50(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, 5)
 
-model.load_state_dict(torch.load('model\\resnet50.bin', map_location=torch.device('cpu')))
+model.load_state_dict(torch.load('server\\model\\resnet50.bin', map_location=torch.device('cpu')))
 
 model.eval()
 
@@ -123,9 +123,12 @@ def query_language_identification(image_data):
 
 
 @app.route('/')
-def main():
-    return render_template("index.html")
+def serve_react_app():
+    return send_from_directory(app.static_folder, 'index.html')
 
+@app.route('/<path:filename>')
+def serve_static_files(filename):
+    return send_from_directory(app.static_folder, filename)
 
 @app.route('/predict', methods=['POST'])
 def success():
@@ -161,13 +164,6 @@ def serve_uploaded_file(filename):
     """Safely serve the uploaded file from the 'uploads' directory."""
     return send_from_directory(app.config["IMAGE_UPLOADS"], filename)
 
-
-if __name__ == "__main__":
-    # Ensure the 'uploads' directory exists
-    os.makedirs(app.config["IMAGE_UPLOADS"], exist_ok=True)
-    app.run(host='0.0.0.0', port=5000)
-
-
 def predict(img):
     img = image_transform(img).unsqueeze(0)  # Add batch dimension
 
@@ -180,8 +176,8 @@ def predict(img):
 
     return {"predicted_class": predicted_class.item(), "probabilities": probabilities.tolist()}
 
+if __name__ == "__main__":
+    # Ensure the 'uploads' directory exists
+    os.makedirs(app.config["IMAGE_UPLOADS"], exist_ok=True)
+    app.run(host='0.0.0.0', port=5000)
 
-inputs = gr.inputs.Image()
-outputs = gr.outputs.Label(num_top_classes=3)
-
-gr.Interface(fn=predict, inputs=inputs, outputs=outputs).launch()
