@@ -26,7 +26,7 @@ app.config["ALLOWED_EXTENSIONS"] = {
     "png", "jpg", "jpeg", "gif"}  # Allowed file extensions
 
 # Model Configuration
-MODEL_PATH = "server/model/resnet50.pth"
+MODEL_PATH = "model/resnet50.pth"
 
 # Define the model class (you should replace this with your actual model class)
 
@@ -49,7 +49,7 @@ MODEL_PATH = "server/model/resnet50.pth"
 model = models.resnet50(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, 5)
 
-model.load_state_dict(torch.load('server\\model\\resnet50.bin', map_location=torch.device('cpu')))
+model.load_state_dict(torch.load('model\\resnet50.bin', map_location=torch.device('cpu')))
 
 model.eval()
 
