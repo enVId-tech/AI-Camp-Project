@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename
 import gradio as gr
 from PIL import Image
 
-app = Flask(__name__, static_folder='../public')
+app = Flask(__name__, static_folder='../build')
 CORS(app)
 
 # Configuration

@@ -79,7 +79,7 @@ function App() {
         </Helmet>
       </HelmetProvider>
 
-      <img id="Image1" href={LOGO} />
+      <img id="Image1" href={LOGO} alt=""/>
       <div id="body">
 
         <p id="Title">Computer Vision Project</p>
@@ -87,7 +87,7 @@ function App() {
           <form id="Form">
             <div id="inputs">
               <input type="file" id="file" accept="image/*" onChange={onSelectFile} />
-              {selectedFile && <img id="preview" src={preview} />}
+              {selectedFile && <img id="preview" src={preview} alt="" />}
             </div>
             <div id="result"></div>
 
